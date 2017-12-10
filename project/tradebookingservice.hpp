@@ -35,6 +35,7 @@ public:
   // ctor for a trade
   Trade(const T &_product, string _tradeId, double price_, string _book, long _quantity, Side _side);
 
+  Trade(){};
   // Get the product
   const T& GetProduct() const;
 
@@ -120,15 +121,6 @@ double Trade<T>::GetPrice() const
 
 
 
-
-
-
-
-
-
-
-
-
 /**
  * Trade Booking Service to book trades to a particular book.
  * Keyed on product identifier.
@@ -141,43 +133,14 @@ class TradeBookingService : public Service<string,Trade <T> >
 public:
 
   // Book the trade
-  virtual void BookTrade(const Trade<T> &trade) = 0;
+  virtual void BookTrade( Trade<T> &trade) = 0;
 
 };
-
+/*
 template<typename T>
 void TradeBookingService<T>::BookTrade(const Trade<T> &trade)
 {
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+}*/
 
 
 class BondTradeBookingService : public TradeBookingService<Bond>
@@ -200,13 +163,17 @@ class BondTradeBookingService : public TradeBookingService<Bond>
   virtual const vector< ServiceListener< Trade<Bond> >* >& GetListeners() const;
 
   // Book the trade
-  virtual void BookTrade(const Trade<Bond> &trade); 
+  virtual void BookTrade(Trade<Bond> &trade); 
+
+  //void print(){std::cout<<"hello"<<std::endl;};
   
   private:
     
   std::map<string,Trade<Bond> > TradeMP;
     
-  std::vector<ServiceListener<Trade<Bond> >* >TradeListeners;
+  //std::vector<ServiceListener<Trade<Bond> >* >TradeListeners;
+
+  std::vector< ServiceListener<Trade<Bond> >* >TradeListeners;
 
 };
 
@@ -214,8 +181,11 @@ class BondTradeBookingService : public TradeBookingService<Bond>
 
 BondTradeBookingService::BondTradeBookingService()
 {
+  
   TradeMP = map<string,Trade<Bond> >();
+ 
   TradeListeners = vector< ServiceListener< Trade<Bond> >* >();
+  
 }
 
 
@@ -231,13 +201,19 @@ Trade<Bond>& BondTradeBookingService::GetData(string key)
 void BondTradeBookingService::OnMessage(Trade<Bond> &data)
 {
   BookTrade(data);
+  //std::cout<<"OnMessage 1"<<std::endl;
   if(TradeListeners.size()!=0)
   {
+    //std::cout<<"OnMessage 2"<<std::endl;
 
-  for(std::vector<ServiceListener< Trade<Bond> >* >::iterator it = TradeListeners.begin();it!=TradeListeners.end();it++)
+  //for(std::vector<ServiceListener< Trade<Bond> >* >::iterator it = TradeListeners.begin();it!=TradeListeners.end();it++)
+  for(int i = 0; i<TradeListeners.size();i++)
   {
-    (*it)->ProcessAdd(data);
+    //std::cout<<"OnMessage 3"<<std::endl;
+    //(*it)->ProcessAdd(data);
+    TradeListeners[i]->ProcessAdd(data);
   }
+  //std::cout<<"OnMessage 4"<<std::endl;
     
   }
   
@@ -255,19 +231,21 @@ const vector< ServiceListener<Trade<Bond> >* >& BondTradeBookingService::GetList
 }
 
 // Book the trade
-void BondTradeBookingService::BookTrade(const Trade<Bond> &trade)
+void BondTradeBookingService::BookTrade( Trade<Bond> &trade)
 {
   TradeMP.insert(pair< string,Trade<Bond> >( trade.GetTradeId(), trade ) );
 } 
   
 
-class BondTradeBookingServiceConnector: Connector < Trade<Bond> >
+class BondTradeBookingServiceConnector: public Connector < Trade<Bond> >
 {
 public:
 
-  BondTradeBookingServiceConnector( BondTradeBookingService _myline):BondTradeBooking(_myline){}; 
-  virtual void Publish(Trade<Bond>& data)
-  {}
+  BondTradeBookingServiceConnector( BondTradeBookingService& _myline):BondTradeBooking(_myline){}; 
+  virtual void Publish(Trade<Bond>& data){};
+
+
+
 
   void Subscribe()
   {
@@ -292,8 +270,11 @@ public:
     std::getline(linestream,book,',');
     std::getline(linestream,quantity,',');
     std::getline(linestream,side,',');
+   
+    
+   // std::cout<<"here initial "<<side<<std::endl;
 
-  
+
 
     if(!product.empty())
     {
@@ -335,7 +316,13 @@ public:
           Bond bond2Y("2Y", idType,"T", 0.015, maturityDate);
           
           Trade<Bond> obj1 = Trade<Bond>(bond2Y,tradeID,tradedPrice,book,quant,pside);
+          
+          std::cout<<"here 1"<<std::endl;
+
           BondTradeBooking.OnMessage(obj1);
+
+          std::cout<<"here 2"<<std::endl;
+          //std::cout<<"product: "<<BondTradeBooking.GetData(tradeID).GetTradeId()<<std::endl;
         }
 
         else if(product == "3Y")
